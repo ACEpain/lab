@@ -98,8 +98,15 @@ boot_alloc(uint32_t n)
 	// to a multiple of PGSIZE.
 	//
 	// LAB 2: Your code here.
-
-	return NULL;
+    if(!n) {
+        return nextfree;
+    }   
+    if(ROUNDUP(n, PGSIZE) / PGSIZE > npages){
+            panic("Out of memory!");
+    }
+    result = nextfree;
+    nextfree += ROUNDUP(n, PGSIZE);
+	return result;
 }
 
 // Set up a two-level page table:
@@ -121,7 +128,7 @@ mem_init(void)
 	i386_detect_memory();
 
 	// Remove this line when you're ready to test this function.
-	panic("mem_init: This function is not finished\n");
+	//panic("mem_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -144,7 +151,8 @@ mem_init(void)
 	// array.  'npages' is the number of physical pages in memory.  Use memset
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
-
+    pages = (struct PageInfo*)boot_alloc(npages * sizeof(PageInfo));
+    memset(pages, 0, ROUNDUP(npages * sizeof(PageInfo)));
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -249,6 +257,9 @@ page_init(void)
 	// free pages!
 	size_t i;
 	for (i = 0; i < npages; i++) {
+        if(page2pa(pages[i]) < EXTPHYSMEM && page2pa(pages[i]) >= IOPHYSMEM
+                        || i < 1)
+            continue;
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
@@ -271,7 +282,15 @@ struct PageInfo *
 page_alloc(int alloc_flags)
 {
 	// Fill this function in
-	return 0;
+    if(!page_free_list) 
+        return NULL;
+    PageInfo *result = NULL;
+    result = page_free_list;
+    result->pp_link = NULL;
+    page_free_list = page_free_list->pp_link;
+    if(alloc_flags & ALLOC_ZERO)
+        memset(page2kva(result), '\0', PGSIZE);
+	return result;
 }
 
 //
@@ -284,6 +303,11 @@ page_free(struct PageInfo *pp)
 	// Fill this function in
 	// Hint: You may want to panic if pp->pp_ref is nonzero or
 	// pp->pp_link is not NULL.
+    if(pp->pp_ref || pp->pp_link){
+        panic("This page is still used!");
+    }
+    pp->pp_link = next_free_list;
+    next_free_list = pp;
 }
 
 //
