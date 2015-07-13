@@ -287,7 +287,7 @@ region_alloc(struct Env *e, void *va, size_t len)
 	va = ROUNDDOWN(va, PGSIZE);
 	len = ROUNDUP(len, PGSIZE);
 	struct PageInfo *pp = NULL;
-	for(; len > 0; len -= PGSIZE) {
+	for(; len > 0; len -= PGSIZE, va += PGSIZE) {
 		pp = page_alloc(ALLOC_ZERO);
 		if(!pp)
 			panic("physical memory isn't sufficient");
@@ -349,7 +349,6 @@ load_icode(struct Env *e, uint8_t *binary)
 	//  to make sure that the environment starts executing there.
 	//  What?  (See env_run() and env_pop_tf() below.)
 
-	// LAB 3: Your code here.
 	struct Proghdr *ph, *eph;
 	ph = (struct Proghdr *)(binary + ((struct Elf *)binary)->e_phoff);
 	if(ph->p_filesz > ph->p_memsz)
@@ -509,7 +508,7 @@ env_run(struct Env *e)
 
 	// LAB 3: Your code here.
 	if(curenv != e) {
-		if(curenv->env_status == ENV_RUNNING) {
+		if(curenv && curenv->env_status == ENV_RUNNING) {
 			curenv->env_status = ENV_RUNNABLE;
 		}
 		curenv = e;
@@ -518,6 +517,6 @@ env_run(struct Env *e)
 		lcr3(PADDR(curenv->env_pgdir));
 	}
 	env_pop_tf(&curenv->env_tf);
-	panic("env_run not yet implemented");
+	//panic("env_run not yet implemented");
 }
 
