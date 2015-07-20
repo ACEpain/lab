@@ -64,6 +64,7 @@
 	TRAPHANDLER(align, T_ALIGN);
 	TRAPHANDLER_NOEC(mchk, T_MCHK);
 	TRAPHANDLER_NOEC(simderr, T_SIMDERR);
+    TRAPHANDLER_NOEC(sys_call, T_SYSCALL);
 	
 
 /*
@@ -78,7 +79,7 @@ _alltraps:
 
 	movl	$GD_KD, %eax
 	movw	%ax, %ds
-	movw	%ax, %ds
+	movw	%ax, %es
 	pushl	%esp
 	call	trap
 #endif

@@ -84,11 +84,14 @@ trap_init(void)
 	extern void align();
 	extern void mchk();
 	extern void simderr();
+    //extern int32_t syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, 
+    //uint32_t a3, uint32_t a4, uint32_t a5);
+    extern void sys_call();
 	
 	SETGATE(idt[T_DIVIDE], 0, GD_KT, divide, 0);
 	SETGATE(idt[T_DEBUG], 0, GD_KT, debug, 0);
 	SETGATE(idt[T_NMI], 0, GD_KT, nmi, 0);
-	SETGATE(idt[T_BRKPT], 0, GD_KT, brkpt, 0);
+	SETGATE(idt[T_BRKPT], 0, GD_KT, brkpt, 3);
 	SETGATE(idt[T_OFLOW], 0, GD_KT, oflow, 0);
 	SETGATE(idt[T_BOUND], 0, GD_KT, bound, 0);
 	SETGATE(idt[T_ILLOP], 0, GD_KT, illop, 0);
@@ -103,6 +106,7 @@ trap_init(void)
 	SETGATE(idt[T_ALIGN], 0, GD_KT, align, 0);
 	SETGATE(idt[T_MCHK], 0, GD_KT, mchk, 0);
 	SETGATE(idt[T_SIMDERR], 0, GD_KT, simderr, 0);
+    SETGATE(idt[T_SYSCALL], 0, GD_KT, sys_call, 3);
 #endif
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -181,17 +185,24 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
-	/*switch(tf->trapno){
+	switch(tf->tf_trapno){
 		case T_PGFLT: page_fault_handler(tf); break;
-	}*/
+        case T_BRKPT: monitor(tf); break;
+        case T_SYSCALL: tf->tf_regs.reg_eax =
+                                syscall(tf->tf_regs.reg_eax,
+                                tf->tf_regs.reg_edx,
+                                tf->tf_regs.reg_ecx,
+                                tf->tf_regs.reg_ebx,
+                                tf->tf_regs.reg_edi,
+                                tf->tf_regs.reg_esi); break;
 	// Unexpected trap: The user process or the kernel has a bug.
-	print_trapframe(tf);
-	if (tf->tf_cs == GD_KT)
-		panic("unhandled trap in kernel");
-	else {
-		env_destroy(curenv);
-		return;
-	}
+        default:
+            print_trapframe(tf);
+            if (tf->tf_cs == GD_KT)
+                panic("unhandled trap in kernel");
+            else
+                env_destroy(curenv);
+    }
 }
 
 void
@@ -244,7 +255,9 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
-
+    if((tf->tf_cs & 0x01) == 0) {
+        panic("kernel failed");
+    }
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
 
